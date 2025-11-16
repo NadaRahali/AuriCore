@@ -1,0 +1,513 @@
+{
+  "name": "Migraine Risk Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://migraine-api-306803736348.europe-north1.run.app/predict",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -736,
+        -112
+      ],
+      "id": "e9be5ef3-ceb4-4f6c-8cd9-58527082f6f6",
+      "name": "Call Migraine API"
+    },
+    {
+      "parameters": {
+        "jsCode": "function randn(mean, sd) {\n  const u1 = 1 - Math.random();\n  const u2 = 1 - Math.random();\n  const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);\n  return mean + sd * z;\n}\n\n// 1) Force risk distribution\nconst r = Math.random();\nlet riskMode;\n\nif (r < 0.30) {\n  riskMode = \"LOW\";      // 30%\n} else if (r < 0.65) {\n  riskMode = \"MEDIUM\";   // 35%\n} else {\n  riskMode = \"HIGH\";     // 35%\n}\n\n// Baselines\nconst baseline_sleep = 7.0;\nconst baseline_hrv = 55;\nconst baseline_screen = 3.5;\nconst baseline_meetings = 4;\n\nlet sleep_hours, hrv, resting_hr, screen_total, screen_after_22;\nlet meeting_hours, meeting_count;\nlet pressure_change_abs, temperature, humidity, precipitation;\n\n// ✅ LOW = healthy\nif (riskMode === \"LOW\") {\n  sleep_hours = randn(7.5, 0.4);\n  hrv = randn(60, 4);\n  resting_hr = randn(60, 3);\n  screen_total = randn(3, 0.5);\n  screen_after_22 = Math.max(0, randn(0.3, 0.1));\n  meeting_hours = randn(3, 0.8);\n  pressure_change_abs = Math.abs(randn(1, 0.5));\n}\n\n// ✅ MEDIUM = mildly bad\nif (riskMode === \"MEDIUM\") {\n  sleep_hours = randn(6, 0.6);\n  hrv = randn(48, 4);\n  resting_hr = randn(70, 3);\n  screen_total = randn(5, 0.8);\n  screen_after_22 = Math.max(0, randn(1.2, 0.4));\n  meeting_hours = randn(6, 1.0);\n  pressure_change_abs = Math.abs(randn(4, 1.2));\n}\n\n// ✅ HIGH = clearly bad\nif (riskMode === \"HIGH\") {\n  sleep_hours = randn(4.5, 0.7);\n  hrv = randn(38, 6);\n  resting_hr = randn(80, 4);\n  screen_total = randn(7, 1.2);\n  screen_after_22 = Math.max(0, randn(3, 0.6));\n  meeting_hours = randn(10, 1.5);\n  pressure_change_abs = Math.abs(randn(8, 2));\n}\n\n// Weather\ntemperature = randn(10, 5);\nhumidity = Math.min(100, Math.max(40, randn(70, 10)));\nprecipitation = Math.max(0, randn(1, 1));\n\n// Deviations & rolling\nconst sleep_deviation = sleep_hours - baseline_sleep;\nconst hrv_deviation = hrv - baseline_hrv;\nconst screen_deviation = screen_total - baseline_screen;\nconst meeting_deviation = meeting_hours - baseline_meetings;\n\nconst sleep_3d = sleep_hours - randn(0.3, 0.3);\nconst hrv_3d = hrv - randn(3, 3);\nconst screen_3d = screen_total - randn(0.5, 0.4);\nconst meeting_3d = meeting_hours - randn(0.5, 0.4);\n\nreturn [\n  {\n    json: {\n      features: {\n        sleep_hours,\n        hrv,\n        resting_hr,\n        screen_time_total_hours: screen_total,\n        screen_time_after_22_hours: screen_after_22,\n        meeting_hours,\n        meeting_count: Math.round(meeting_hours),\n        temperature,\n        pressure_change_abs,\n        humidity,\n        precipitation,\n        sleep_deviation,\n        hrv_deviation,\n        screen_deviation,\n        meeting_deviation,\n        sleep_hours_3d_avg: sleep_3d,\n        hrv_3d_avg: hrv_3d,\n        screen_time_total_hours_3d_avg: screen_3d,\n        meeting_hours_3d_avg: meeting_3d\n      },\n      forced_risk_mode: riskMode\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -944,
+        -112
+      ],
+      "id": "077d6c06-9479-45e7-a7cd-dc40ef05b3a3",
+      "name": "Build Features"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "triggerAtMinute": 30
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1152,
+        -112
+      ],
+      "id": "162910b1-4deb-4c6c-8a47-90aae7e10b3f",
+      "name": "Execute Node",
+      "alwaysOutputData": false,
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b8c5d063-6628-4187-9b3f-af8a458f33a2",
+              "leftValue": "={{ $json.risk_level }}",
+              "rightValue": "=LOW",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -512,
+        -112
+      ],
+      "id": "11162b28-9d74-4b58-bebd-2a7be8bf336d",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "sendTo": "anuradhika.wije@gmail.com",
+        "subject": "Migrain Risk High",
+        "message": "=<h3>Migraine Risk Alert ⚠️</h3>\n\n<p>Your current risk level is: <b>{{$json[\"risk_level\"]}}</b></p>\n<p>Risk score: {{$json[\"risk_score\"]}}</p>\n\n<h4>Top contributing factors:</h4>\n<ul>\n  <li>{{ $json[\"top_factors\"][0] }}</li>\n  <li>{{ $json[\"top_factors\"][1] }}</li>\n  <li>{{ $json[\"top_factors\"][2] }}</li>\n</ul>\n\n<h4>Recommended Actions</h4>\n<ul>\n  <li>Reduce screen time for 15 minutes</li>\n  <li>Drink water</li>\n  <li>Deep-breathing exercise for 2 minutes</li>\n</ul>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -96,
+        16
+      ],
+      "id": "87ec1e5b-f26f-442a-b695-1ef51f647810",
+      "name": "Send a message",
+      "webhookId": "2de01c0c-d450-4bf1-9cad-43c620243ff8",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Xv4sKjzQUM0dYTO7",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1ktFUdtuZwwOuitc8c5uNBkO1xcsi0aRsKf7o6WdKHvw",
+          "mode": "list",
+          "cachedResultName": "Migraine data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ktFUdtuZwwOuitc8c5uNBkO1xcsi0aRsKf7o6WdKHvw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ktFUdtuZwwOuitc8c5uNBkO1xcsi0aRsKf7o6WdKHvw/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "timestamp": "={{ $now }}",
+            "risk_score": "={{ $json[\"risk_score\"] }}",
+            "risk_level": "={{ $json[\"risk_level\"] }}",
+            "top_factor_1": "={{ $json[\"top_factors\"][0] || \"\" }}",
+            "top_factor_2": "={{ $json[\"top_factors\"][1] || \"\" }}",
+            "top_factor_3": "={{ $json[\"top_factors\"][2] || \"\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "risk_score",
+              "displayName": "risk_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "risk_level",
+              "displayName": "risk_level",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "top_factor_1",
+              "displayName": "top_factor_1",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "top_factor_2",
+              "displayName": "top_factor_2",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "top_factor_3",
+              "displayName": "top_factor_3",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -464,
+        80
+      ],
+      "id": "01bd3e11-4271-46c5-be82-3be982d85de8",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "wph15ekSTBiRCKnt",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1emJPd_uSIA52rU-yi_-b5FqrWzaVKe1WSDO7XqCpdm8",
+          "mode": "list",
+          "cachedResultName": "Migraine_Diary",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1emJPd_uSIA52rU-yi_-b5FqrWzaVKe1WSDO7XqCpdm8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1emJPd_uSIA52rU-yi_-b5FqrWzaVKe1WSDO7XqCpdm8/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{ $now }}",
+            "Risk Score": "={{ $json[\"risk_score\"] }}",
+            "Risk Level": "={{ $json[\"risk_level\"] }}",
+            "Symptoms": "=\"pending\"",
+            "Sleep": "={{ $json[\"sleep_hours\"] }}",
+            "Medication": "=\"none\"",
+            "Weather": "={{ $json[\"weather\"] }}",
+            "Triggers": "={{ $json[\"top_factors\"].join(\", \") }}",
+            "Notes": "=\"auto-generated entry\"",
+            "Factors": "={{ $json[\"top_factors\"] }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Risk Score",
+              "displayName": "Risk Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Risk Level",
+              "displayName": "Risk Level",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Symptoms",
+              "displayName": "Symptoms",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Medication",
+              "displayName": "Medication",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Weather",
+              "displayName": "Weather",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Sleep",
+              "displayName": "Sleep",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Triggers",
+              "displayName": "Triggers",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Notes",
+              "displayName": "Notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Factors",
+              "displayName": "Factors",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -128,
+        -176
+      ],
+      "id": "e2b95b9d-f05b-4ca0-8eeb-96758d55a634",
+      "name": "Append to Diary",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "wph15ekSTBiRCKnt",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1) Get data from Build Features\nconst features = $item(0).$node[\"Build Features\"].json.features;\n\n// 2) Get API prediction result\nconst predArray = $node[\"Call Migraine API\"].json;\nconst pred = Array.isArray(predArray) ? predArray[0] : predArray;\n\n// 3) Build final json\nreturn [\n  {\n    json: {\n      user_id: \"dff79c3d-8228-4f90-bf3e-c46223c678f0\",\n      timestamp: new Date().toISOString(),\n      safe_timestamp: new Date().toISOString(),\n\n      // --- FEATURES ---\n      sleep_hours: features.sleep_hours ?? null,\n      hrv: features.hrv ?? null,\n      resting_hr: features.resting_hr ?? null,\n      screen_time_total_hours: features.screen_time_total_hours ?? null,\n      screen_time_after_22_hours: features.screen_time_after_22_hours ?? null,\n      meeting_hours: features.meeting_hours ?? null,\n      meeting_count: features.meeting_count ?? null,\n      temperature: features.temperature ?? null,\n      pressure_change_abs: features.pressure_change_abs ?? null,\n      humidity: features.humidity ?? null,\n      precipitation: features.precipitation ?? null,\n\n      // --- PREDICTION (CORRECTED) ---\n      risk_score: pred?.risk_score ?? null,\n  risk_level: pred?.risk_level ?? null,\n\n  // top_factors comes as an ARRAY → map correctly\n  top_factors: {\n    first: pred?.top_factors?.[0] ?? null,\n    second: pred?.top_factors?.[1] ?? null,\n    third: pred?.top_factors?.[2] ?? null,\n  },\n\n  model_version: pred?.model_version ?? null,\n    },\n  },\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -704,
+        224
+      ],
+      "id": "c8d450dd-9feb-4cb5-a935-ed10ca9bf2d4",
+      "name": "Merge Features + Prediction"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://migraine-personal-predict-default-rtdb.europe-west1.firebasedatabase.app/users/{{user_id}}/events/{{timestamp}}.json",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -288,
+        224
+      ],
+      "id": "a794fe4c-4bcc-4e51-9308-7e5e8d43e605",
+      "name": "Store Personal Data"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://migraine-personal-predict-default-rtdb.europe-west1.firebasedatabase.app/users/predictions/{{$json[\"user_id\"]}}/{{$json[\"timestamp\"].replace(/[:.]/g, \"_\") }}.json",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ \n  {\n    \"user_id\": $json[\"user_id\"],\n    \"timestamp\": $json[\"timestamp\"],\n    \"risk_score\": $json[\"risk_score\"],\n    \"risk_level\": $json[\"risk_level\"],\n    \"top_factors\": {\n      \"first\": $json[\"top_factors\"][\"first\"],\n      \"second\": $json[\"top_factors\"][\"second\"],\n      \"third\": $json[\"top_factors\"][\"third\"]\n    },\n    \"model_version\": $json[\"model_version\"]\n  }\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -208,
+        416
+      ],
+      "id": "8465c0fa-6bf9-4208-8eb8-c3c3b17002f4",
+      "name": "Store Predictions"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Call Migraine API": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Features + Prediction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Features": {
+      "main": [
+        [
+          {
+            "node": "Call Migraine API",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Features + Prediction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Node": {
+      "main": [
+        [
+          {
+            "node": "Build Features",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Append to Diary",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Features + Prediction": {
+      "main": [
+        [
+          {
+            "node": "Store Personal Data",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Store Predictions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "b7710419-6589-4e99-948d-923ba2b9b10b",
+  "meta": {
+    "instanceId": "b35933ed8f3246be7959bb44864be0398fab0b4772d3b27381a06751d59dfcb8"
+  },
+  "id": "ZsPTmmeC9rATNOZl",
+  "tags": []
+}
