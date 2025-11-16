@@ -1,63 +1,38 @@
 # AURICORE
 
-A React Native mobile application for migraine prediction and management, built with Expo.
-
-## Features
-
-- **Migraine Prediction** - AI-powered risk assessment using health data, weather, and calendar
-- **Health Data Integration** - HealthKit, location, calendar, and wearable device data
-- **Dashboard** - Real-time migraine risk, weather insights, and calendar analysis
-- **Brain Meditation** - Breathing exercises and meditation for migraine relief
-- **Community & Support** - Safe space for sharing experiences and support
-- **Insights** - Sleep stages, nutrition tracking, and doctor reports
-- **Premium Features** - Prescription management and nutritionist consultations
-
-## Tech Stack
-
-- **React Native** with Expo
-- **Supabase** - Backend and authentication
-- **Firebase** - Additional data storage
-- **React Navigation** - Screen navigation
-- **Expo Linear Gradient** - UI gradients
-- **OpenWeatherMap API** - Weather data
-
-## Installation
-
-```bash
-# Install dependencies
-npm install
-
-# Start development server
-npm start
-
-# Run on specific platform
-npm run android
-npm run ios
-```
-
-## Environment Setup
-
-Configure the following in your environment:
-
-- Supabase URL and keys
-- Firebase configuration
-- OpenWeatherMap API key (configured in `config/app.js`)
+A comprehensive migraine prediction and management platform with mobile app and backend API.
 
 ## Project Structure
 
-```
-auricore/
-├── screens/          # App screens
-├── navigation/       # Navigation configuration
-├── lib/              # Services and utilities
-├── config/           # Theme and app configuration
-├── components/       # Reusable components
-└── supabase/         # Database migrations
-```
+This repository contains two main components:
 
-## Development
+- **[Frontend](./frontend/)** - React Native mobile application
+- **[Backend](./backend/)** - Backend API (to be implemented)
 
-The app uses Supabase for authentication and data storage, with Firebase for additional health data synchronization.
+## Quick Links
+
+- [Frontend Documentation](./frontend/README.md) - Mobile app setup and development guide
+- [Backend Documentation](./backend/README.md) - API documentation (coming soon)
+
+## Overview
+
+AURICORE is a mobile application that helps users predict, manage, and track migraines using:
+- Health data integration (HealthKit, wearables)
+- Weather and environmental factors
+- Calendar and schedule analysis
+- AI-powered risk prediction
+- Community support features
+- Premium health management tools
+
+## Getting Started
+
+### Frontend
+
+See the [Frontend README](./frontend/README.md) for mobile app setup instructions.
+
+### Backend
+
+Backend API implementation is in progress. See the [Backend README](./backend/README.md) for details.
 
 ## License
 
