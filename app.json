@@ -1,0 +1,60 @@
+{
+  "expo": {
+    "name": "AURICORE",
+    "slug": "auricore",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.auricore.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "AURICORE needs your location to provide weather-based migraine predictions and track environmental triggers.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "AURICORE needs your location to provide weather-based migraine predictions and track environmental triggers.",
+        "NSHealthShareUsageDescription": "AURICORE needs access to your health data (steps, heart rate, sleep, menstrual cycle) to provide better migraine predictions.",
+        "NSHealthUpdateUsageDescription": "AURICORE needs access to your health data to track patterns and provide personalized migraine predictions.",
+        "NSCalendarsUsageDescription": "AURICORE needs access to your calendar to detect busy schedules and predict stress-related migraine triggers.",
+        "NSRemindersUsageDescription": "AURICORE needs access to your reminders to better understand your schedule patterns."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "READ_CALENDAR",
+        "WRITE_CALENDAR"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "AURICORE needs your location to provide weather-based migraine predictions and track environmental triggers."
+        }
+      ],
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "AURICORE needs access to your calendar to detect busy schedules and predict stress-related migraine triggers."
+        }
+      ]
+    ]
+  }
+}
